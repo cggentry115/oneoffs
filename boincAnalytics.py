@@ -1,6 +1,7 @@
 import requests
 from bs4 import BeautifulSoup
 from datetime import datetime, timezone
+import csv
 
 
 def scrape_data():
@@ -10,6 +11,7 @@ def scrape_data():
     last_successful_host_id = 0
     valid_host_count = 0
     bad_response_count = 0
+    coprocessors_and_owners = []
 
     while True:
         url = f"{base_url}{host_id}"
@@ -27,6 +29,8 @@ def scrape_data():
             else:
                 bad_response_count = 0
                 last_contacted_date = None
+                owner = None
+                coprocessors = None
 
                 # Find all <td> elements
                 td_elements = soup.find_all('td')
@@ -35,6 +39,10 @@ def scrape_data():
                 for i in range(len(td_elements)):
                     if td_elements[i].text.strip() == "Last contact":
                         last_contacted_date = td_elements[i + 1].text.strip()
+                    elif td_elements[i].text.strip() == "Owner":
+                        owner = td_elements[i + 1].text.strip()
+                    elif td_elements[i].text.strip() == "Coprocessors":
+                        coprocessors = td_elements[i + 1].text.strip()
 
                 # Calculate days since last contact if date was found
                 if last_contacted_date:
@@ -59,6 +67,10 @@ def scrape_data():
                 last_successful_host_id = host_id
                 valid_host_count += 1
 
+                # Store the owner and coprocessors information
+                if owner is not None and coprocessors is not None:
+                    coprocessors_and_owners.append((owner, coprocessors))
+
         else:
             bad_response_count += 1
             if bad_response_count >= 5:
@@ -66,11 +78,11 @@ def scrape_data():
 
         host_id += 1
 
-    return days_count, last_successful_host_id, valid_host_count
+    return days_count, last_successful_host_id, valid_host_count, coprocessors_and_owners
 
 
 # Scrape the data
-days_count, last_successful_host_id, valid_host_count = scrape_data()
+days_count, last_successful_host_id, valid_host_count, coprocessors_and_owners = scrape_data()
 
 # Print the aggregated data
 if not days_count:
@@ -82,8 +94,4 @@ else:
             print(f"{days} Days since last contact: {count} hosts")
         else:
             count = days_count.get(10, 0)
-            print(f"10+ Days since last contact: {count} hosts")
 
-# Print the highest host ID reached and the number of valid hosts
-print(f"Highest host ID reached: {last_successful_host_id}")
-print(f"Total number of valid hosts: {valid_host_count}")
